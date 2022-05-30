@@ -12,10 +12,13 @@ from flask import (Flask,
                    jsonify)
 from werkzeug.utils import secure_filename
 from PIL import Image
+from pathlib import Path
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 WIDTH = app.config['PIXELS_WIDTH']
 HEIGHT = app.config['PIXELS_HEIGHT']
+
+UPLOAD_DIR = Path(app.config['UPLOAD_FOLDER'])
 
 LAST_PIXELS = 'pixels.png'
 def allowed_file(filename):
@@ -36,7 +39,16 @@ def upload_image():
         return redirect(request.url)
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        fpath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        if not UPLOAD_DIR.exists():
+            try:
+                UPLOAD_DIR.mkdir(
+                mode=0o700,
+                parents=True)
+            except FileExistsError as fee:
+                print(f"Cannot create upload directory: {fee}")
+
+        fpath = UPLOAD_DIR / filename
         file.save(fpath)
         img = Image.open(fpath)
         pixels = img.resize((WIDTH, HEIGHT),resample=Image.BILINEAR)
