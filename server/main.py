@@ -15,8 +15,6 @@ from PIL import Image
 from pathlib import Path
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
-WIDTH = app.config['PIXELS_WIDTH']
-HEIGHT = app.config['PIXELS_HEIGHT']
 
 UPLOAD_DIR = Path(app.config['UPLOAD_FOLDER'])
 
@@ -30,6 +28,8 @@ def upload_form():
 
 @app.route('/', methods=['POST'])
 def upload_image():
+    WIDTH = app.config['PIXELS_WIDTH']
+    app.config['PIXELS_HEIGHT']
     if 'file' not in request.files:
         flash('No file part')
         return redirect(request.url)
@@ -49,10 +49,13 @@ def upload_image():
                 print(f"Cannot create upload directory: {fee}")
 
         fpath = UPLOAD_DIR / filename
-        file.save(fpath)
+        file.save(str(fpath))
         img = Image.open(fpath)
-        pixels = img.resize((WIDTH, HEIGHT),resample=Image.BILINEAR)
-        pixels_x4 = img.resize((int(WIDTH/2), int(HEIGHT/2)),resample=Image.BILINEAR)
+        img = img.convert('RGB')
+        height = int(WIDTH * (img.size[1] / img.size[0]))
+        app.config['PIXELS_HEIGHT'] = height
+        pixels = img.resize((WIDTH, height),resample=Image.BILINEAR)
+        pixels_x4 = img.resize((int(WIDTH/2), int(height/2)),resample=Image.BILINEAR)
         _pixels = pixels.resize(img.size,Image.NEAREST)
         t = time.time()
         pixels_name = f'result{t}.png'
@@ -80,6 +83,7 @@ def display_image(filename):
 
 @app.route('/portion', methods=['GET', 'POST'])
 def setget_portion():
+    HEIGHT = app.config['PIXELS_HEIGHT']
     if request.method == 'POST':
         content = request.json
         print(content['portion_size'], type(content['portion_size']))
@@ -93,13 +97,16 @@ def setget_portion():
 
 @app.route('/get_portion')
 def get_data_portion():
+    WIDTH = app.config['PIXELS_WIDTH']
+    HEIGHT = app.config['PIXELS_HEIGHT']
+    por_size = app.config['PORTION_SIZE']
     if not 'PORTION' in app.config:
         return jsonify({'status':'fail', 'message':'set_image'}), 500
     else:
         data = app.config['LAST_PIXELS']
         por = app.config['PORTION']
-        start = WIDTH*int(HEIGHT/2) * por
-        end = WIDTH*int(HEIGHT/2) * (por + 1)
+        start = WIDTH * por_size * 3 * por
+        end = WIDTH * por_size * 3 * (por + 1)
         PIXELS = WIDTH * HEIGHT * 3
         if start >= PIXELS:
             return Response(b'', mimetype="bytes", direct_passthrough=True)
