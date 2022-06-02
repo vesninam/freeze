@@ -3,6 +3,8 @@ import time
 SYSTEM='!micro'
 IP = '0.0.0.0'
 PORT = '5000'
+FILE = 'pixels.pix'
+LINES = 10
 
 
 if SYSTEM == 'micro':
@@ -23,7 +25,7 @@ while True:
         data = resp.content
         if len(data) == 0:
             break
-        with open('pixels.pix', 'ab') as f:
+        with open(FILE, 'ab') as f:
             f.write(data)
         while True:
             resp = req.post(f'http://{IP}:{PORT}/next_portion')
@@ -36,7 +38,30 @@ while True:
 
 if SYSTEM == 'micro':
     #DRIVE STEPPERS AND CONTROL LEDS
-    pass
+    from machine import Pin
+    from neopixel import NeoPixel
+    import utime
+    resp = req.get(f'http://{IP}:{PORT}/get_size')
+    s = resp.json()['size']
+    NLEDS = s[0]
+    HEIGHT = s[1]
+    pix = NeoPixel(Pin(2), NLEDS)
+    with open(FILE, 'rb') as f:
+        lastline = 0
+        while lastline <= HEIGHT:
+            data = f.read(LINES * NLEDS * 3)
+            if NLEDS * 3 >= len(data):
+                break
+            for line in range(LINES):
+                if (line + 1) * NLEDS * 3 >= len(data):
+                    break
+                for iled in range(NLEDS):
+                    ind = (i + line * NLEDS * 3)
+                    #r, g, b = data[ind:ind+3]
+                    pix[iled] = data[ind:ind+3]
+                pix.write()
+                utime.sleep(0.1)
+                lastline += 1
 
 if SYSTEM != 'micro':
     from PIL import Image
