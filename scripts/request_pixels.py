@@ -1,26 +1,27 @@
-import time
-
-SYSTEM='!micro'
-IP = '0.0.0.0'
+SYSTEM='micro'
+#IP = '0.0.0.0'
+IP = '192.168.4.1'
 PORT = '5000'
 FILE = 'pixels.pix'
 LINES = 10
 
 
 if SYSTEM == 'micro':
+    import utime as tim 
     import urequests as req
 else:
     import requests as req
+    import time as tim
 
 with open('pixels.pix', 'wb') as f:
     pass
 
 while True:
-    resp = req.get(f'http://{IP}:{PORT}/get_portion')
+    resp = req.get('http://'+IP+':'+PORT+'/get_portion')
     if resp.status_code == 500:
         print('Probably image is not loaded to server')
         print(resp.json()['message'])
-        time.sleep(1)
+        tim.sleep(1)
     elif resp.status_code == 200:
         data = resp.content
         if len(data) == 0:
@@ -28,19 +29,18 @@ while True:
         with open(FILE, 'ab') as f:
             f.write(data)
         while True:
-            resp = req.post(f'http://{IP}:{PORT}/next_portion')
+            resp = req.post('http://'+IP+':'+PORT+'/next_portion')
             if resp.status_code == 200:
                 break
     else:
         print('Unknow error, see server logs')
-        time.sleep(1)
+        tim.sleep(1)
 
 
 if SYSTEM == 'micro':
     #DRIVE STEPPERS AND CONTROL LEDS
     from machine import Pin
     from neopixel import NeoPixel
-    import utime
     resp = req.get(f'http://{IP}:{PORT}/get_size')
     s = resp.json()['size']
     NLEDS = s[0]
@@ -56,11 +56,11 @@ if SYSTEM == 'micro':
                 if (line + 1) * NLEDS * 3 >= len(data):
                     break
                 for iled in range(NLEDS):
-                    ind = (i + line * NLEDS * 3)
+                    ind = (iled + line * NLEDS * 3)
                     #r, g, b = data[ind:ind+3]
                     pix[iled] = data[ind:ind+3]
                 pix.write()
-                utime.sleep(0.1)
+                tim.sleep(0.1)
                 lastline += 1
 
 if SYSTEM != 'micro':
@@ -69,7 +69,7 @@ if SYSTEM != 'micro':
     image_data = None
     with open('pixels.pix', 'rb') as f:
         image_data = f.read()
-    resp = req.get(f'http://{IP}:{PORT}/get_size')
+    resp = req.get('http://'+IP+':'+PORT+'/get_size')
     s = resp.json()['size']
     print(s)
     image = Image.frombytes('RGB', s, image_data, 'raw')
